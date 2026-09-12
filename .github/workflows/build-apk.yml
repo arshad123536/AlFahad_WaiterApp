@@ -61,7 +61,13 @@ jobs:
 
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          # gradlew's executable bit doesn't survive a commit made from
+          # Windows (this repo's whole history was authored on a Windows
+          # PC with no WSL/git-bash chmod step) -- restore it here rather
+          # than depend on the bit having been set correctly at commit time.
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
