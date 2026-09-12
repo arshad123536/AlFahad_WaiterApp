@@ -154,6 +154,23 @@
     background: var(--accent); color: #1a1208; font-size: 11.5px; font-weight: 800;
     display: flex; align-items: center; justify-content: center; padding: 0 5px;
   }
+  /* Category-first browsing (tap a category, see only its items, tap back
+     to return) instead of every category's tiles stacked in one long
+     scroll -- same shape as Super Kentucky's own dashboard manual-order
+     page, ported here since a waiter who's also cashiered there expects
+     the identical picking flow. */
+  .mo-category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .mo-category-tile {
+    position: relative; text-align: center; padding: 18px 12px; border-radius: 10px;
+    background: var(--surface-raised); border: 2px solid var(--border); font-family: inherit; cursor: pointer;
+  }
+  .mo-category-name { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+  .mo-category-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .mo-category-header h4 { margin: 0; font-size: 14px; font-weight: 800; color: var(--ink); }
+  .mo-category-header button.secondary {
+    flex: none; width: auto; margin-top: 0; padding: 8px 14px; font-size: 12.5px;
+    background: var(--surface-raised); color: var(--ink); border: 1px solid var(--border); border-radius: 8px;
+  }
   .mo-cart { min-height: 50px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 8px; }
   .mo-cart-line { border-bottom: 1px solid var(--border); padding: 8px 10px; }
   .mo-cart-line:last-child { border-bottom: none; }

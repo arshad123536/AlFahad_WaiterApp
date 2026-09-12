@@ -105,3 +105,19 @@ jobs:
         with:
           name: waiter-app-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      # OTA bundle for capacitor-updater (see src/main.js's
+      # checkForBundleUpdate and each restaurant's GET /api/waiter-app/
+      # bundle-version) -- zip root must be www/'s OWN contents (index.html
+      # next to main.js), not a www/ subfolder, since capacitor-updater
+      # unpacks this straight over the app's web assets. Covers any
+      # JS/HTML/CSS change with no reinstall; a new native permission/
+      # plugin still needs the APK above.
+      - name: Build OTA bundle zip
+        working-directory: www
+        run: zip -r ../waiter-app-bundle.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waiter-app-bundle
+          path: waiter-app-bundle.zip

@@ -23,6 +23,8 @@ let state = {
 let callsPollTimer = null;
 let ordersPollTimer = null;
 let activeTab = 'calls';
+// Whether طلب مباشر's menu/tables have been fetched yet -- see switchTab.
+let moLoadedOnce = false;
 
 function $(id) { return document.getElementById(id); }
 
@@ -75,6 +77,7 @@ async function boot() {
   CapacitorUpdater.notifyAppReady().catch(() => {});
 
   if (!state.restaurant) return showScreen('screen-picker');
+  checkForBundleUpdate();
   if (!state.authToken) {
     $('login-restaurant-label').textContent = RESTAURANTS[state.restaurant].label;
     return showScreen('screen-login');
@@ -82,11 +85,35 @@ async function boot() {
   enterMainScreen();
 }
 
+// Web-only OTA update (JS/HTML/CSS -- no reinstall) via capacitor-updater,
+// same mechanism as الفهد دليفري's own checkForBundleUpdate. A native-level
+// change (new permission/plugin) still needs a real new APK; this only
+// covers everything else, which is most day-to-day changes (this exact
+// category/order-list UI update is itself the first thing shipped this
+// way). Best-effort: a failed check/download just leaves the current
+// bundle running, never surfaced as an error.
+async function checkForBundleUpdate() {
+  try {
+    const current = await CapacitorUpdater.current();
+    const res = await fetch(`${apiBase()}/api/waiter-app/bundle-version?current=${encodeURIComponent(current.bundle.version)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (current.bundle.version === data.version) return;
+    const next = await CapacitorUpdater.download({ version: data.version, url: data.url });
+    await CapacitorUpdater.set(next); // reloads the WebView onto the new bundle
+  } catch {
+    // offline, download failed, or a corrupt zip -- capacitor-updater's own
+    // checksum verification already refuses to `set()` a bad bundle, so the
+    // app just keeps running the current one until the next check.
+  }
+}
+
 // --- Restaurant picker --------------------------------------------------
 document.querySelectorAll('#screen-picker button[data-restaurant]').forEach((btn) => {
   btn.addEventListener('click', async () => {
     state.restaurant = btn.dataset.restaurant;
     await Preferences.set({ key: RESTAURANT_KEY, value: state.restaurant });
+    checkForBundleUpdate();
     $('login-restaurant-label').textContent = RESTAURANTS[state.restaurant].label;
     showScreen('screen-login');
   });
@@ -170,7 +197,13 @@ function enterMainScreen() {
   switchTab('calls');
   loadCalls();
   loadOrders();
-  loadManualOrderData();
+  // NOT loaded here -- it's the heaviest fetch (full menu + tables) and
+  // firing it immediately alongside the two calls above right after login
+  // was making the very first seconds after login noticeably janky
+  // (reported as the keyboard/IME being slow to show up on later screens
+  // too -- the WebView's JS thread was still busy rendering this tab's
+  // markup). Deferred to switchTab() so it only runs once the الطلب
+  // المباشر tab is actually opened.
   if (callsPollTimer) clearInterval(callsPollTimer);
   if (ordersPollTimer) clearInterval(ordersPollTimer);
   // Calls are time-sensitive (a customer is sitting there waiting) -- a
@@ -203,6 +236,12 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-page').forEach((el) => {
     el.classList.toggle('active', el.id === `tab-page-${tab}`);
   });
+  // Lazy: only fetched the first time this tab is actually opened, not at
+  // login alongside نداءات/الطلبات (see enterMainScreen's own comment).
+  if (tab === 'order' && !moLoadedOnce) {
+    moLoadedOnce = true;
+    loadManualOrderData();
+  }
 }
 
 // --- نداءات (waiter calls) -----------------------------------------------
@@ -357,40 +396,97 @@ function renderMoTableGrid() {
   });
 }
 
+// null = showing the category grid; a category name = showing that
+// category's own items with a "الأقسام" back button to the grid. Ported
+// from each restaurant's own dashboard manual-order page so a waiter who's
+// also cashiered there gets the identical picking flow, instead of every
+// category's tiles stacked one under the other in one long scroll.
+let moActiveCategory = null;
+
+function categoryOf(it) { return (it.category || '').trim() || 'أخرى'; }
+
+function moTileHtml(it) {
+  const inCart = moCart.find((l) => l.id === it.id);
+  const price = itemEffectivePrice(it);
+  return `
+    <button type="button" class="mo-item-tile${inCart ? ' in-cart' : ''}" data-mo-add="${it.id}">
+      ${inCart ? `<span class="mo-tile-badge">${inCart.qty}</span>` : ''}
+      <span class="mo-tile-name">${escapeHtml(displayItemName(it.name))}</span>
+      <span class="mo-tile-price">${Number(price).toLocaleString()} د.ع</span>
+    </button>`;
+}
+
+function wireMoTileButtons(container) {
+  container.querySelectorAll('button[data-mo-add]').forEach((btn) => {
+    btn.addEventListener('click', () => addToMoCart(Number(btn.dataset.moAdd)));
+  });
+}
+
+// A search query is a global override: it bypasses category mode entirely
+// and flat-lists every matching item, since someone already typing a name
+// doesn't want it scoped to whichever category tile happened to be open.
 function renderMoItemList(filter) {
   moLastFilter = filter || '';
   const list = $('mo-item-list');
   const q = moLastFilter.trim();
-  const shown = moMenuItems.filter((it) => !q || it.name.includes(q));
-  if (shown.length === 0) {
-    list.innerHTML = '<div class="mo-empty-list">ماكو أصناف مطابقة.</div>';
+  if (q) {
+    const shown = moMenuItems.filter((it) => it.name.includes(q));
+    list.innerHTML = shown.length === 0
+      ? '<div class="mo-empty-list">ماكو أصناف مطابقة.</div>'
+      : `<div class="mo-item-grid">${shown.map(moTileHtml).join('')}</div>`;
+    wireMoTileButtons(list);
     return;
   }
-  const groups = new Map();
-  for (const it of shown) {
-    const cat = (it.category || '').trim() || 'أخرى';
-    if (!groups.has(cat)) groups.set(cat, []);
-    groups.get(cat).push(it);
+  if (!moActiveCategory) {
+    renderMoCategoryGrid();
+    return;
   }
-  list.innerHTML = [...groups.entries()].map(([cat, items]) => `
-    <div class="mo-item-group">
-      <h4>${escapeHtml(cat)}</h4>
-      <div class="mo-item-grid">
-        ${items.map((it) => {
-          const inCart = moCart.find((l) => l.id === it.id);
-          const price = itemEffectivePrice(it);
-          return `
-            <button type="button" class="mo-item-tile${inCart ? ' in-cart' : ''}" data-mo-add="${it.id}">
-              ${inCart ? `<span class="mo-tile-badge">${inCart.qty}</span>` : ''}
-              <span class="mo-tile-name">${escapeHtml(displayItemName(it.name))}</span>
-              <span class="mo-tile-price">${Number(price).toLocaleString()} د.ع</span>
-            </button>`;
-        }).join('')}
-      </div>
-    </div>`).join('');
-  list.querySelectorAll('button[data-mo-add]').forEach((btn) => {
-    btn.addEventListener('click', () => addToMoCart(Number(btn.dataset.moAdd)));
+  // A category can empty out mid-open (its last item deactivated elsewhere)
+  // -- fall back to the grid instead of leaving a dead, itemless screen up.
+  const items = moMenuItems.filter((it) => categoryOf(it) === moActiveCategory);
+  if (items.length === 0) { moActiveCategory = null; renderMoCategoryGrid(); return; }
+  renderMoCategoryItems(moActiveCategory, items);
+}
+
+function renderMoCategoryGrid() {
+  const list = $('mo-item-list');
+  const categories = [...new Set(moMenuItems.map(categoryOf))];
+  if (categories.length === 0) {
+    list.innerHTML = '<div class="mo-empty-list">ماكو أصناف بالمنيو.</div>';
+    return;
+  }
+  // Badge shows how many units from THIS category are already in the cart
+  // -- lets the waiter see at a glance what's picked without opening it.
+  list.innerHTML = `<div class="mo-category-grid">${categories.map((cat) => {
+    const idsInCat = new Set(moMenuItems.filter((it) => categoryOf(it) === cat).map((it) => it.id));
+    const cartQty = moCart.filter((l) => idsInCat.has(l.id)).reduce((s, l) => s + l.qty, 0);
+    return `
+      <button type="button" class="mo-category-tile" data-mo-category="${escapeHtml(cat)}">
+        ${cartQty > 0 ? `<span class="mo-tile-badge">${cartQty}</span>` : ''}
+        <span class="mo-category-name">${escapeHtml(cat)}</span>
+      </button>`;
+  }).join('')}</div>`;
+  list.querySelectorAll('button[data-mo-category]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      moActiveCategory = btn.dataset.moCategory;
+      renderMoItemList('');
+    });
   });
+}
+
+function renderMoCategoryItems(cat, items) {
+  const list = $('mo-item-list');
+  list.innerHTML = `
+    <div class="mo-category-header">
+      <button type="button" class="secondary" id="mo-back-to-categories">🔙 الأقسام</button>
+      <h4>${escapeHtml(cat)}</h4>
+    </div>
+    <div class="mo-item-grid">${items.map(moTileHtml).join('')}</div>`;
+  $('mo-back-to-categories').addEventListener('click', () => {
+    moActiveCategory = null;
+    renderMoItemList('');
+  });
+  wireMoTileButtons(list);
 }
 
 // Super Kentucky's menu uses a trailing "(...)" on some item names as an
@@ -466,6 +562,7 @@ function renderMoCart() {
 async function loadManualOrderData() {
   moCart = [];
   moTableId = null;
+  moActiveCategory = null;
   moError(null);
   $('mo-item-search').value = '';
   renderMoCart();
