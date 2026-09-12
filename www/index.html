@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>الفهد نادل</title>
+<style>
+  :root {
+    --bg: #171009;
+    --surface: #241a0d;
+    --surface-raised: #2c2011;
+    --border: #3a2c17;
+    --ink: #f4ead9;
+    --ink-soft: #b7a58c;
+    --accent: #e2a23a;
+    --success-bg: rgba(74,222,128,0.14);
+    --success-ink: #6ee7a0;
+    --danger-bg: rgba(248,113,113,0.16);
+    --danger-ink: #fca5a5;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    padding: calc(env(safe-area-inset-top) + 30px) 16px env(safe-area-inset-bottom);
+    min-height: 100vh;
+  }
+  .screen { display: none; padding-top: 24px; }
+  .screen.active { display: block; }
+
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .muted { color: var(--ink-soft); font-size: 13px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; margin-top: 16px;
+  }
+
+  label { display: block; font-size: 12.5px; color: var(--ink-soft); font-weight: 700; margin: 14px 0 5px; }
+  input[type=text], input[type=tel], input[type=password], select {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+    font-size: 15px; font-family: inherit; background: var(--surface-raised); color: var(--ink);
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  button.btn {
+    display: block; width: 100%; margin-top: 18px; padding: 14px; border: none; border-radius: 12px;
+    background: var(--accent); color: #1a1208; font-size: 15.5px; font-weight: 800; cursor: pointer;
+  }
+  button.btn:disabled { opacity: 0.5; }
+  button.btn.secondary {
+    background: var(--surface-raised); color: var(--ink); border: 1px solid var(--border);
+  }
+
+  .error-msg { color: var(--danger-ink); font-size: 13px; margin-top: 10px; display: none; font-weight: 600; }
+
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .top-bar .who-name { font-weight: 800; font-size: 16px; }
+  .top-bar button { background: none; border: none; color: var(--ink-soft); font-size: 13px; cursor: pointer; }
+
+  /* Bottom tab bar -- three screens a waiter actually needs, nothing else.
+     Fixed at the bottom (not scrolled top nav) since this is a tablet held
+     while walking between tables, thumb-reachable matters more than a
+     conventional top-of-page nav would. */
+  #tab-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; background: var(--surface); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  #tab-bar button {
+    flex: 1; background: none; border: none; color: var(--ink-soft); font-family: inherit;
+    padding: 12px 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  #tab-bar button .tab-icon { font-size: 20px; }
+  #tab-bar button.active { color: var(--accent); }
+  /* Red dot on "نداءات" whenever there's at least one active call the waiter
+     hasn't dismissed -- the whole point of push is speed, so the tab itself
+     has to show it even if the waiter is sitting on a different tab when it
+     arrives. */
+  #tab-bar button[data-tab="calls"] .tab-icon { position: relative; }
+  #tab-calls-dot {
+    position: absolute; top: -2px; left: -6px; width: 9px; height: 9px; border-radius: 50%;
+    background: #ef4444; display: none;
+  }
+  #tab-calls-dot.show { display: block; }
+
+  #screen-main { padding-bottom: 90px; } /* clears the fixed tab bar */
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  .empty-state { text-align: center; padding: 60px 0; color: var(--ink-soft); }
+  .empty-state .big { font-size: 40px; margin-bottom: 10px; }
+
+  /* --- نداءات (waiter calls) -------------------------------------------- */
+  .call-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .call-card {
+    background: var(--danger-bg); border: 1px solid rgba(248,113,113,0.35); border-radius: 14px;
+    padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .call-card .table-label { font-weight: 800; font-size: 16px; color: var(--danger-ink); }
+  .call-card .call-time { font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+  .call-card button {
+    flex-shrink: 0; padding: 10px 16px; border-radius: 10px; border: none;
+    background: var(--surface-raised); color: var(--ink); font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+
+  /* --- الطلبات (dine-in orders) ------------------------------------------ */
+  .order-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .order-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+  }
+  .order-card .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .order-card .order-id { font-weight: 800; font-size: 15px; }
+  .order-card .total { color: var(--accent); font-weight: 800; }
+  .order-card .items { font-size: 13.5px; line-height: 1.7; margin: 8px 0; color: var(--ink); }
+  .order-card .table-line { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+  .order-card .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .order-card .actions button {
+    flex: 1; text-align: center; padding: 10px; border-radius: 10px;
+    font-size: 13.5px; font-weight: 700; border: 1px solid var(--border); background: var(--surface-raised);
+    color: var(--ink); cursor: pointer;
+  }
+  .order-card .actions button.primary { background: var(--accent); color: #1a1208; border-color: transparent; }
+
+  /* --- طلب مباشر (direct order) -- same touch-tile language as the
+     dashboard's own manual-order page (.mo-*), ported class-for-class so it
+     reads identically to a cashier who already knows that screen. */
+  .mo-table-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 8px; margin-top: 10px; }
+  .mo-table-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 58px; padding: 8px 6px;
+    background: var(--surface-raised); border: 2px solid var(--border); border-radius: 10px;
+    font-family: inherit; cursor: pointer; color: var(--ink);
+  }
+  .mo-table-btn.selected { border-color: var(--accent); background: rgba(226,162,58,0.12); }
+  .mo-table-num { font-size: 15px; font-weight: 800; }
+  .mo-table-occupied { font-size: 10px; color: var(--ink-soft); }
+  .mo-item-group + .mo-item-group { margin-top: 16px; }
+  .mo-item-group h4 { margin: 0 0 8px; font-size: 12.5px; color: var(--ink-soft); font-weight: 800; }
+  .mo-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .mo-item-tile {
+    position: relative; text-align: right; padding: 10px 12px; border-radius: 10px;
+    background: var(--surface-raised); border: 2px solid var(--border); font-family: inherit; cursor: pointer;
+  }
+  .mo-item-tile.in-cart { border-color: var(--accent); background: rgba(226,162,58,0.12); }
+  .mo-item-tile .mo-tile-name { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink); line-height: 1.35; }
+  .mo-item-tile .mo-tile-price { display: block; font-size: 11px; color: var(--ink-soft); margin-top: 3px; }
+  .mo-item-tile .mo-tile-badge {
+    position: absolute; top: -7px; left: -7px; min-width: 20px; height: 20px; border-radius: 999px;
+    background: var(--accent); color: #1a1208; font-size: 11.5px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; padding: 0 5px;
+  }
+  .mo-cart { min-height: 50px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 8px; }
+  .mo-cart-line { border-bottom: 1px solid var(--border); padding: 8px 10px; }
+  .mo-cart-line:last-child { border-bottom: none; }
+  .mo-cart-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .mo-cart-row .mo-cart-name { flex: 1; min-width: 0; }
+  .mo-cart-qty { display: flex; align-items: center; gap: 6px; }
+  .mo-cart-qty button {
+    padding: 4px 12px; font-size: 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface-raised); color: var(--ink); cursor: pointer;
+  }
+  .mo-cart-remove { border: none; background: none; color: var(--danger-ink); font-size: 15px; cursor: pointer; }
+  .mo-cart-total { padding: 10px; font-weight: 800; text-align: left; border-top: 1px solid var(--border); }
+  .mo-empty-list, .mo-empty-cart { padding: 14px; text-align: center; color: var(--ink-soft); font-size: 12.5px; }
+
+  #brand-splash {
+    position: fixed; inset: 0; z-index: 9999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: var(--bg);
+    pointer-events: none;
+    animation: brand-splash-out 1.1s ease forwards;
+  }
+  #brand-splash .mark {
+    display: block; width: 14px; height: 14px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 16px 9px 0 -2px #e8531f, 30px -7px 0 -4px var(--accent);
+  }
+  #brand-splash strong { font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: 0.02em; }
+  #brand-splash span.tagline { font-size: 12px; color: var(--ink-soft); }
+  @keyframes brand-splash-out {
+    0%, 55% { opacity: 1; }
+    100% { opacity: 0; visibility: hidden; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #brand-splash { animation: brand-splash-out 0.4s ease forwards; }
+  }
+  #brand-corner {
+    position: fixed; top: calc(env(safe-area-inset-top) + 14px); right: 16px; z-index: 50;
+    display: flex; align-items: center; gap: 7px;
+    pointer-events: none;
+  }
+  #brand-corner .mark {
+    display: block; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 10px 6px 0 -1.5px #e8531f, 19px -4px 0 -2.5px var(--accent);
+  }
+</style>
+</head>
+<body>
+
+<div id="brand-splash" aria-hidden="true">
+  <span class="mark"></span>
+  <strong>الفهد</strong>
+  <span class="tagline">تطبيق النادل</span>
+</div>
+
+<div id="brand-corner" aria-hidden="true">
+  <span class="mark"></span>
+</div>
+
+<!-- Restaurant picker: first launch only. One APK serves both restaurants,
+     same pattern as الفهد دليفري -- this just points every subsequent API
+     call at the chosen origin. -->
+<div class="screen" id="screen-picker">
+  <h1>الفهد نادل</h1>
+  <p class="muted">اختر المطعم الي تشتغل معه</p>
+  <div class="card">
+    <button class="btn" data-restaurant="tabarak">مطعم ومشاوي تبارك</button>
+    <button class="btn secondary" data-restaurant="superkentucky" style="margin-top:10px">سوبر كنتاكي</button>
+  </div>
+</div>
+
+<!-- Login: same username/password as the dashboard itself (dashboard_users)
+     -- a waiter is a real staff account with just the 'waiter' permission,
+     not a separate credential system like the driver app's phone+PIN. -->
+<div class="screen" id="screen-login">
+  <h1>تسجيل دخول</h1>
+  <p class="muted" id="login-restaurant-label"></p>
+  <div class="card">
+    <label for="login-user">اسم المستخدم</label>
+    <input type="text" id="login-user" autocapitalize="off" autocorrect="off">
+    <label for="login-pass">كلمة المرور</label>
+    <input type="password" id="login-pass">
+    <button class="btn" id="login-btn">دخول</button>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+  <button class="btn secondary" id="change-restaurant-btn" style="margin-top:20px">تغيير المطعم</button>
+</div>
+
+<!-- Main shell: three tabs, all a waiter needs. -->
+<div class="screen" id="screen-main">
+  <div class="top-bar">
+    <div>
+      <div class="who-name" id="main-username"></div>
+      <div class="muted" id="main-restaurant-label"></div>
+    </div>
+    <button id="logout-btn">خروج</button>
+  </div>
+
+  <!-- نداءات: tables currently calling for a waiter. -->
+  <div class="tab-page active" id="tab-page-calls">
+    <h1 style="margin-top:16px">🔔 نداءات</h1>
+    <div id="calls-container">
+      <div class="empty-state"><div class="big">🔕</div><div>ماكو نداءات حالياً</div></div>
+    </div>
+  </div>
+
+  <!-- الطلبات: open dine-in orders, mark served once handed over. -->
+  <div class="tab-page" id="tab-page-orders">
+    <h1 style="margin-top:16px">🍽️ طلبات الصالة</h1>
+    <div id="orders-container">
+      <div class="empty-state"><div class="big">📭</div><div>ماكو طلبات صالة حالياً</div></div>
+    </div>
+  </div>
+
+  <!-- طلب مباشر: table + item picker + cart, ported from the dashboard's
+       own manual-order page (see index.html's mo-* code in each restaurant
+       repo) -- dine-in only, no سفري toggle (see POST /api/orders/manual's
+       server-side waiter restriction). -->
+  <div class="tab-page" id="tab-page-order">
+    <h1 style="margin-top:16px">➕ طلب مباشر</h1>
+    <label>الطاولة</label>
+    <div id="mo-table-grid" class="mo-table-grid"></div>
+    <label for="mo-item-search">الأصناف</label>
+    <input type="text" id="mo-item-search" placeholder="🔍 دور على صنف...">
+    <div id="mo-item-list"></div>
+    <label>السلة</label>
+    <div class="mo-cart" id="mo-cart"></div>
+    <div class="error-msg" id="mo-error"></div>
+    <button class="btn" id="mo-submit-btn">✅ تثبيت الطلب</button>
+  </div>
+</div>
+
+<div id="tab-bar" style="display:none">
+  <button type="button" class="active" data-tab="calls">
+    <span class="tab-icon">🔔<span id="tab-calls-dot"></span></span>
+    <span>نداءات</span>
+  </button>
+  <button type="button" data-tab="orders">
+    <span class="tab-icon">🍽️</span>
+    <span>الطلبات</span>
+  </button>
+  <button type="button" data-tab="order">
+    <span class="tab-icon">➕</span>
+    <span>طلب مباشر</span>
+  </button>
+</div>
+
+<!-- Built by esbuild (see package.json's "build" script) -->
+<script src="main.js"></script>
+</body>
+</html>

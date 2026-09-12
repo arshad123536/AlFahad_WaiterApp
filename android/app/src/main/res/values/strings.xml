@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">الفهد نادل</string>
+    <string name="title_activity_main">الفهد نادل</string>
+    <string name="package_name">co.alfahad.waiterapp</string>
+    <string name="custom_url_scheme">co.alfahad.waiterapp</string>
+</resources>

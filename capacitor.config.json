@@ -1,0 +1,13 @@
+{
+  "appId": "co.alfahad.waiterapp",
+  "appName": "الفهد نادل",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false
+    }
+  },
+  "android": {
+    "useLegacyBridge": true
+  }
+}

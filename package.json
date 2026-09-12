@@ -1,0 +1,26 @@
+{
+  "name": "waiter-app",
+  "version": "1.0.0",
+  "description": "Al-Fahad waiter app -- table calls, dine-in orders, direct ordering, for Tabarak and Super Kentucky",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "esbuild src/main.js --bundle --format=iife --outfile=www/main.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/push-notifications": "^8.1.2",
+    "@capgo/capacitor-updater": "^8.51.14"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
