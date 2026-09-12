@@ -178,7 +178,17 @@ function enterMainScreen() {
   // move this order forward" and can afford to lag a bit more.
   callsPollTimer = setInterval(loadCalls, 6000);
   ordersPollTimer = setInterval(loadOrders, 15000);
-  setupPushNotifications();
+  // DISABLED for now: this app's package (co.alfahad.waiterapp) has no
+  // google-services.json yet (it needs its own Android app entry added to
+  // the existing "al-fahad-delivery" Firebase project first -- see
+  // [[feedback_restaurant_dual_deploy_workflow]]/project notes). Calling
+  // into @capacitor/push-notifications without that crashed the app
+  // immediately after login (a native FCM/Firebase init failure, which a
+  // JS try/catch inside setupPushNotifications can't catch -- it never
+  // gets back to JS at all). The 6s calls poll above already covers a
+  // waiter-call in the meantime; re-enable this call once the real
+  // google-services.json is in place.
+  // setupPushNotifications();
 }
 
 document.querySelectorAll('#tab-bar button[data-tab]').forEach((btn) => {
