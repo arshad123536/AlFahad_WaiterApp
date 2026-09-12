@@ -51,6 +51,25 @@ jobs:
 
       - run: npx cap sync android
 
+      # AGP's default debug signingConfig looks for exactly this file/alias/
+      # password and auto-generates it on a normal dev machine the first
+      # time a debug build runs -- but on this fresh, throwaway CI runner
+      # that auto-generation didn't happen (still unclear why; possibly a
+      # Gradle/AGP 8.13 + JDK 21 combination quirk), and the build quietly
+      # produced a completely UNSIGNED app-debug.apk instead of failing
+      # loudly. Android refuses to install an unsigned APK -- Chrome's own
+      # download UI gives no error for this, it just never launches the
+      # installer, which is exactly the "finishes downloading, nothing
+      # happens" report this fixes. Generating it explicitly with the
+      # well-known Android debug keystore defaults removes the guesswork.
+      - name: Ensure Android debug keystore exists
+        run: |
+          mkdir -p ~/.android
+          keytool -genkeypair -v -keystore ~/.android/debug.keystore \
+            -storepass android -keypass android -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10950 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -68,6 +87,13 @@ jobs:
           # than depend on the bit having been set correctly at commit time.
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon
+
+      # Catches exactly the failure mode that shipped once already: a build
+      # that "succeeds" but produces an unsigned APK Android silently
+      # refuses to install. Fail the whole run instead of uploading a
+      # broken artifact again.
+      - name: Verify the APK is actually signed
+        run: jarsigner -verify android/app/build/outputs/apk/debug/app-debug.apk
 
       - uses: actions/upload-artifact@v4
         with:
