@@ -37,7 +37,7 @@
 
     <!-- Permissions -->
 
-    <!-- No location permissions here -- unlike الفهد دليفري, the waiter app
+    <!-- No location permissions here, unlike الفهد دليفري: the waiter app
          never tracks a device's position (a waiter works inside the
          restaurant; there is nothing to route to them). -->
     <uses-permission android:name="android.permission.INTERNET" />
