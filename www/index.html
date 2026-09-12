@@ -182,8 +182,42 @@
     background: var(--surface-raised); color: var(--ink); cursor: pointer;
   }
   .mo-cart-remove { border: none; background: none; color: var(--danger-ink); font-size: 15px; cursor: pointer; }
+  .mo-cart-note {
+    width: 100%; margin-top: 6px; padding: 6px 8px; font-size: 12px;
+    border: 1px solid var(--border); border-radius: 6px; background: var(--surface-raised); color: var(--ink);
+  }
   .mo-cart-total { padding: 10px; font-weight: 800; text-align: left; border-top: 1px solid var(--border); }
   .mo-empty-list, .mo-empty-cart { padding: 14px; text-align: center; color: var(--ink-soft); font-size: 12.5px; }
+
+  /* Small secondary button, used outside .btn's big full-width buttons --
+     the ✕ close on the options modal, the 🔙 back-to-categories button. */
+  button.secondary {
+    width: auto; margin-top: 0; padding: 8px 14px; font-size: 12.5px; font-family: inherit;
+    background: var(--surface-raised); color: var(--ink); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+  }
+
+  /* Multi-select sub-options modal -- same overlay shape used across the
+     dashboard's own modals (cancel-reason, item-options). */
+  #item-options-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 16px;
+  }
+  #item-options-overlay.open { display: flex; }
+  #item-options-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; max-width: 420px; width: 100%; max-height: 80vh; overflow-y: auto;
+  }
+  #item-options-modal .mo-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  #item-options-modal .mo-header h3 { margin: 0; font-size: 16px; }
+  #item-options-modal .modal-actions { margin-top: 14px; }
+  #item-options-modal .modal-actions button { width: 100%; }
+  .options-picker { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; }
+  .option-check {
+    display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13.5px; color: var(--ink);
+  }
+  .option-check input { width: 18px; height: 18px; }
+  .option-check-disabled { opacity: 0.45; cursor: not-allowed; }
 
   #brand-splash {
     position: fixed; inset: 0; z-index: 9999;
@@ -300,6 +334,24 @@
     <div class="mo-cart" id="mo-cart"></div>
     <div class="error-msg" id="mo-error"></div>
     <button class="btn" id="mo-submit-btn">✅ تثبيت الطلب</button>
+  </div>
+</div>
+
+<!-- Multi-select sub-options picker (مقبلات -> باذنجانية/رمانية/...) -- same
+     modal the dashboard's own manual-order page shows. One shared overlay:
+     which item/options it shows and what happens on confirm are passed in
+     fresh each time it opens (see main.js's openItemOptionsPicker). -->
+<div id="item-options-overlay">
+  <div id="item-options-modal">
+    <div class="mo-header">
+      <h3 id="item-options-title"></h3>
+      <button type="button" class="secondary" id="item-options-close">✕</button>
+    </div>
+    <p class="muted" id="item-options-intro"></p>
+    <div class="options-picker" id="item-options-list"></div>
+    <div class="modal-actions">
+      <button type="button" id="item-options-confirm">إضافة للسلة</button>
+    </div>
   </div>
 </div>
 

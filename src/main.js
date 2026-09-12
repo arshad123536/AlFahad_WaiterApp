@@ -418,9 +418,74 @@ function moTileHtml(it) {
 
 function wireMoTileButtons(container) {
   container.querySelectorAll('button[data-mo-add]').forEach((btn) => {
-    btn.addEventListener('click', () => addToMoCart(Number(btn.dataset.moAdd)));
+    btn.addEventListener('click', () => {
+      const itemId = Number(btn.dataset.moAdd);
+      const item = moMenuItems.find((it) => it.id === itemId);
+      // The picker only opens on the FIRST unit of an item with active
+      // options -- same rule as the dashboard's own manual-order page:
+      // once it's in the cart, tapping the tile again (or the cart's own
+      // +/-) just adjusts quantity, since there's nowhere a second,
+      // differently-chosen selection could live on one cart line anyway.
+      const activeOptions = (item?.options || []).filter((o) => o.active);
+      if (!moCart.find((l) => l.id === itemId) && activeOptions.length > 0) {
+        openItemOptionsPicker(item, activeOptions, (picked) => {
+          addToMoCart(itemId, picked.length > 0 ? picked.join('، ') : '');
+        });
+      } else {
+        addToMoCart(itemId);
+      }
+    });
   });
 }
+
+// Multi-select sub-options picker (مقبلات -> باذنجانية/رمانية/...) -- same
+// modal the dashboard's own manual-order page shows (openItemOptionsPicker
+// there). `onConfirm` receives the array of picked option NAMES (not ids),
+// joined with '، ' into the cart line's own note field.
+let itemOptionsConfirmHandler = null;
+function openItemOptionsPicker(item, activeOptions, onConfirm) {
+  const maxSelect = item.option_max_select > 0 ? item.option_max_select : null;
+  $('item-options-title').textContent = displayItemName(item.name);
+  const introEl = $('item-options-intro');
+  introEl.textContent = maxSelect
+    ? `اختر حتى ${maxSelect} ${maxSelect === 1 ? 'خيار' : 'خيارات'}:`
+    : 'اختار وحدة أو أكثر (اختياري):';
+  const list = $('item-options-list');
+  list.innerHTML = activeOptions.map((o) => `
+    <label class="option-check">
+      <input type="checkbox" value="${o.id}" data-opt-name="${escapeHtml(o.name)}">
+      <span>${escapeHtml(o.name)}</span>
+    </label>
+  `).join('');
+  if (maxSelect) {
+    const checkboxes = [...list.querySelectorAll('input[type=checkbox]')];
+    const applyLimit = () => {
+      const checkedCount = checkboxes.filter((c) => c.checked).length;
+      checkboxes.forEach((c) => {
+        if (c.checked) return;
+        c.disabled = checkedCount >= maxSelect;
+        c.closest('.option-check').classList.toggle('option-check-disabled', c.disabled);
+      });
+      introEl.textContent = `اختر حتى ${maxSelect} ${maxSelect === 1 ? 'خيار' : 'خيارات'} (${checkedCount}/${maxSelect}):`;
+    };
+    checkboxes.forEach((c) => c.addEventListener('change', applyLimit));
+    applyLimit();
+  }
+  itemOptionsConfirmHandler = () => {
+    const picked = [...list.querySelectorAll('input:checked')].map((el) => el.dataset.optName);
+    closeItemOptionsPicker();
+    onConfirm(picked);
+  };
+  $('item-options-overlay').classList.add('open');
+}
+function closeItemOptionsPicker() {
+  $('item-options-overlay').classList.remove('open');
+  itemOptionsConfirmHandler = null;
+}
+$('item-options-close').addEventListener('click', closeItemOptionsPicker);
+$('item-options-confirm').addEventListener('click', () => {
+  if (itemOptionsConfirmHandler) itemOptionsConfirmHandler();
+});
 
 // A search query is a global override: it bypasses category mode entirely
 // and flat-lists every matching item, since someone already typing a name
@@ -507,12 +572,12 @@ function itemEffectivePrice(item) {
     : item.price;
 }
 
-function addToMoCart(itemId) {
+function addToMoCart(itemId, note) {
   const item = moMenuItems.find((it) => it.id === itemId);
   if (!item) return;
   const existing = moCart.find((l) => l.id === itemId);
   if (existing) existing.qty += 1;
-  else moCart.push({ id: item.id, name: displayItemName(item.name), price: itemEffectivePrice(item), qty: 1, note: '' });
+  else moCart.push({ id: item.id, name: displayItemName(item.name), price: itemEffectivePrice(item), qty: 1, note: note || '' });
   renderMoCart();
   renderMoItemList(moLastFilter);
 }
@@ -536,6 +601,7 @@ function renderMoCart() {
         <span>${(l.price * l.qty).toLocaleString()} د.ع</span>
         <button type="button" class="mo-cart-remove" data-mo-remove="${l.id}">✕</button>
       </div>
+      <input type="text" class="mo-cart-note" data-mo-note="${l.id}" placeholder="📝 ملاحظة (اختياري)" value="${escapeHtml(l.note || '')}">
     </div>`).join('') + `<div class="mo-cart-total">المجموع: ${total.toLocaleString()} د.ع</div>`;
   container.querySelectorAll('button[data-mo-inc]').forEach((btn) => {
     btn.addEventListener('click', () => addToMoCart(Number(btn.dataset.moInc)));
@@ -555,6 +621,15 @@ function renderMoCart() {
       moCart = moCart.filter((l) => l.id !== Number(btn.dataset.moRemove));
       renderMoCart();
       renderMoItemList(moLastFilter);
+    });
+  });
+  // Updates the data model directly, WITHOUT calling renderMoCart() --
+  // rebuilding the list's innerHTML on every keystroke would blur the
+  // input and reset the cursor mid-word.
+  container.querySelectorAll('input[data-mo-note]').forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const line = moCart.find((l) => l.id === Number(inp.dataset.moNote));
+      if (line) line.note = inp.value.slice(0, 200);
     });
   });
 }
