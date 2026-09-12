@@ -88,22 +88,18 @@ jobs:
           chmod +x ./gradlew
           ./gradlew assembleDebug --no-daemon
 
-      # Catches exactly the failure mode that shipped twice already: a build
-      # that "succeeds" but produces an unsigned APK Android silently
-      # refuses to install. Plain `jarsigner -verify` is NOT enough on its
-      # own -- on a genuinely unsigned jar it just prints "jar is unsigned"
-      # and still exits 0, which is exactly how the first fix attempt here
-      # sailed through CI green while shipping a still-broken APK. Grep its
-      # own output for that phrase (and fail on it) instead of trusting the
-      # exit code.
+      # `jarsigner -verify` is the WRONG tool for this -- it only ever
+      # checks the legacy v1 (JAR) signing scheme, which AGP disables by
+      # default on modern builds in favor of v2/v3. It printed "jar is
+      # unsigned" on a real APK that `apksigner verify` (the actual
+      # APK-aware tool, from the SDK build-tools already installed above)
+      # confirmed was correctly v2-signed and installs fine -- a false
+      # alarm chased for a while before catching it. apksigner's own exit
+      # code is the real signal: non-zero on anything genuinely unsigned
+      # or corrupt.
       - name: Verify the APK is actually signed
         run: |
-          out=$(jarsigner -verify android/app/build/outputs/apk/debug/app-debug.apk 2>&1)
-          echo "$out"
-          if echo "$out" | grep -q "jar is unsigned"; then
-            echo "::error::app-debug.apk is UNSIGNED -- Android will silently refuse to install it."
-            exit 1
-          fi
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose android/app/build/outputs/apk/debug/app-debug.apk
 
       - uses: actions/upload-artifact@v4
         with:
