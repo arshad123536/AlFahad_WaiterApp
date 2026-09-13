@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "338019672550",
+    "project_id": "al-fahad-delivery",
+    "storage_bucket": "al-fahad-delivery.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:338019672550:android:12ff6751c6890972ce3627",
+        "android_client_info": {
+          "package_name": "co.alfahad.driverapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9xHbfXicyd0X9Mm_v7ToYlZDkuDCHWTQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:338019672550:android:8c53497b7505f3f6ce3627",
+        "android_client_info": {
+          "package_name": "co.alfahad.waiterapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9xHbfXicyd0X9Mm_v7ToYlZDkuDCHWTQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
