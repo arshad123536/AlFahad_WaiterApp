@@ -60,15 +60,23 @@ jobs:
       # loudly. Android refuses to install an unsigned APK -- Chrome's own
       # download UI gives no error for this, it just never launches the
       # installer, which is exactly the "finishes downloading, nothing
-      # happens" report this fixes. Generating it explicitly with the
-      # well-known Android debug keystore defaults removes the guesswork.
-      - name: Ensure Android debug keystore exists
+      # happens" report this fixes.
+      #
+      # Reuses a keystore COMMITTED to this repo (ci/debug.keystore) instead
+      # of generating a fresh one every run -- `keytool -genkeypair` makes a
+      # genuinely new random key pair each time even with identical
+      # dname/alias/password, so every earlier CI-built APK carried a
+      # DIFFERENT signature. Android refuses to install an APK over an
+      # existing install of the same package when the signature doesn't
+      # match, with no clear in-app error -- it silently no-ops unless the
+      # user thinks to fully uninstall first. A shared debug key means every
+      # build from here on installs as a normal update over the last one.
+      # Low-risk to commit (unlike a release keystore): this only ever signs
+      # sideloaded debug builds, never anything Play-Store-facing.
+      - name: Install the shared debug keystore
         run: |
           mkdir -p ~/.android
-          keytool -genkeypair -v -keystore ~/.android/debug.keystore \
-            -storepass android -keypass android -alias androiddebugkey \
-            -keyalg RSA -keysize 2048 -validity 10950 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          cp ci/debug.keystore ~/.android/debug.keystore
 
       - name: Cache Gradle
         uses: actions/cache@v4

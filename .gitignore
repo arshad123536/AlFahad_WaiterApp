@@ -25,3 +25,9 @@ android/app/release/
 # a leaked one lets anyone impersonate an update to this exact app).
 *.keystore
 *.jks
+# Exception: the shared DEBUG keystore CI reuses on every build (see
+# build-apk.yml's "Install the shared debug keystore" step) -- committed
+# deliberately so every sideloaded debug APK shares one signature and
+# installs as a normal update over the last one. Only ever signs debug
+# builds, never anything Play-Store-facing, so this is low-risk to commit.
+!ci/debug.keystore
