@@ -358,6 +358,11 @@ let moMenuItems = [];
 let moTablesCache = [];
 let moTableId = null;
 let moLastFilter = '';
+// Collapsed by default (see renderMoTableGrid) -- a waiter picking a table
+// doesn't need every other table's button competing for screen space once
+// theirs is chosen; tapping the collapsed summary re-opens the grid to
+// change it.
+let moTableGridOpen = false;
 
 function moError(msg) {
   const el = $('mo-error');
@@ -372,6 +377,20 @@ function renderMoTableGrid() {
     grid.innerHTML = '<div class="mo-empty-list">ماكو طاولات مضافة</div>';
     return;
   }
+  if (!moTableGridOpen) {
+    const selected = moTablesCache.find((t) => t.id === moTableId);
+    grid.innerHTML = `
+      <button type="button" class="mo-table-btn mo-table-summary" id="mo-table-open">
+        <span class="mo-table-num">${selected ? escapeHtml(selected.label) : 'اختر الطاولة'}</span>
+        <span class="mo-table-hint">${selected ? 'تغيير ▾' : '▾'}</span>
+      </button>
+    `;
+    $('mo-table-open').addEventListener('click', () => {
+      moTableGridOpen = true;
+      renderMoTableGrid();
+    });
+    return;
+  }
   grid.innerHTML = moTablesCache.map((t) => `
     <button type="button" class="mo-table-btn ${moTableId === t.id ? 'selected' : ''}" data-mo-table="${t.id}">
       <span class="mo-table-num">${escapeHtml(t.label)}</span>
@@ -381,6 +400,7 @@ function renderMoTableGrid() {
   grid.querySelectorAll('button[data-mo-table]').forEach((btn) => {
     btn.addEventListener('click', () => {
       moTableId = Number(btn.dataset.moTable);
+      moTableGridOpen = false;
       renderMoTableGrid();
     });
   });
@@ -627,9 +647,9 @@ function renderMoCart() {
 async function loadManualOrderData() {
   moCart = [];
   moTableId = null;
+  moTableGridOpen = false;
   moActiveCategory = null;
   moError(null);
-  $('mo-item-search').value = '';
   renderMoCart();
   $('mo-item-list').innerHTML = '<div class="mo-empty-list">جاري التحميل...</div>';
   $('mo-table-grid').innerHTML = '<div class="mo-empty-list">جاري التحميل...</div>';
@@ -652,8 +672,6 @@ async function loadManualOrderData() {
     $('mo-table-grid').innerHTML = '<div class="mo-empty-list">تعذر تحميل الطاولات.</div>';
   }
 }
-
-$('mo-item-search').addEventListener('input', (e) => renderMoItemList(e.target.value));
 
 $('mo-submit-btn').addEventListener('click', async () => {
   if (!moTableId) return moError('اختر الطاولة.');
