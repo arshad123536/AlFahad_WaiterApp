@@ -22,6 +22,7 @@ let state = {
 
 let callsPollTimer = null;
 let ordersPollTimer = null;
+let tablesPollTimer = null;
 let activeTab = 'calls';
 // Whether طلب مباشر's menu/tables have been fetched yet -- see switchTab.
 let moLoadedOnce = false;
@@ -185,8 +186,10 @@ $('logout-btn').addEventListener('click', async () => {
 function stopPolling() {
   if (callsPollTimer) clearInterval(callsPollTimer);
   if (ordersPollTimer) clearInterval(ordersPollTimer);
+  if (tablesPollTimer) clearInterval(tablesPollTimer);
   callsPollTimer = null;
   ordersPollTimer = null;
+  tablesPollTimer = null;
 }
 
 // --- Main shell / tabs ---------------------------------------------------
@@ -231,6 +234,18 @@ function switchTab(tab) {
   if (tab === 'order' && !moLoadedOnce) {
     moLoadedOnce = true;
     loadManualOrderData();
+  }
+  // الطاولات only polls while it's the visible tab -- unlike نداءات/الطلبات
+  // (time-sensitive, a customer or a hot order is waiting), a table's
+  // occupied/empty status has no urgency once the waiter has moved on to
+  // something else, so there's no reason to keep hitting the endpoint for a
+  // screen nobody's looking at.
+  if (tab === 'tables') {
+    loadTables();
+    if (!tablesPollTimer) tablesPollTimer = setInterval(loadTables, 10000);
+  } else if (tablesPollTimer) {
+    clearInterval(tablesPollTimer);
+    tablesPollTimer = null;
   }
 }
 
@@ -346,6 +361,57 @@ async function markServed(orderId, btn) {
     alert('تعذر الاتصال بالسيرفر.');
     btn.disabled = false;
     btn.textContent = '✅ تم التسليم';
+  }
+}
+
+// --- الطاولات (table status + تفريغ) --------------------------------------
+async function loadTables() {
+  let res;
+  try {
+    res = await apiFetch('/api/tables');
+  } catch {
+    return; // transient network hiccup -- next poll retries
+  }
+  if (!res.ok) return;
+  renderTables(await res.json());
+}
+
+function renderTables(list) {
+  const container = $('tables-container');
+  if (list.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="big">🪑</div><div>ماكو طاولات مضافة</div></div>';
+    return;
+  }
+  container.innerHTML = `<div class="table-list">${list.map((t) => `
+    <div class="table-row">
+      <span class="table-label">🪑 طاولة ${escapeHtml(t.label)}
+        <span class="status-pill ${t.status === 'occupied' ? 'occupied' : 'empty'}">${t.status === 'occupied' ? 'مشغولة' : 'فارغة'}</span>
+      </span>
+      ${t.status === 'occupied' ? `<button data-clear-table="${t.id}">🧹 تفريغ</button>` : ''}
+    </div>
+  `).join('')}</div>`;
+  container.querySelectorAll('button[data-clear-table]').forEach((btn) => {
+    btn.addEventListener('click', () => clearTable(btn.dataset.clearTable, btn));
+  });
+}
+
+async function clearTable(tableId, btn) {
+  btn.disabled = true;
+  btn.textContent = 'جاري...';
+  try {
+    const res = await apiFetch(`/api/tables/${tableId}/clear`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || 'تعذر التفريغ.');
+      btn.disabled = false;
+      btn.textContent = '🧹 تفريغ';
+      return;
+    }
+    loadTables();
+  } catch {
+    alert('تعذر الاتصال بالسيرفر.');
+    btn.disabled = false;
+    btn.textContent = '🧹 تفريغ';
   }
 }
 

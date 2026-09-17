@@ -126,6 +126,23 @@
   }
   .order-card .actions button.primary { background: var(--accent); color: #1a1208; border-color: transparent; }
 
+  /* --- الطاولات (table status + تفريغ) ----------------------------------- */
+  .table-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .table-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .table-row .table-label { font-weight: 800; font-size: 15px; }
+  .table-row .status-pill {
+    font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; margin-inline-start: 8px;
+  }
+  .table-row .status-pill.occupied { background: var(--danger-bg); color: var(--danger-ink); }
+  .table-row .status-pill.empty { background: var(--success-bg); color: var(--success-ink); }
+  .table-row button {
+    flex-shrink: 0; padding: 10px 16px; border-radius: 10px; border: none;
+    background: var(--surface-raised); color: var(--ink); font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+
   /* --- طلب مباشر (direct order) -- same touch-tile language as the
      dashboard's own manual-order page (.mo-*), ported class-for-class so it
      reads identically to a cashier who already knows that screen. */
@@ -339,6 +356,17 @@
     <div class="error-msg" id="mo-error"></div>
     <button class="btn" id="mo-submit-btn">✅ تثبيت الطلب</button>
   </div>
+
+  <!-- الطاولات: every table's occupied/free status, with a تفريغ action --
+       a waiter physically clearing a table after the customer leaves is
+       their own job, distinct from طلب مباشر's table PICKER (which only
+       shows tables to pick FROM, not manage). -->
+  <div class="tab-page" id="tab-page-tables">
+    <h1 style="margin-top:16px">🪑 الطاولات</h1>
+    <div id="tables-container">
+      <div class="empty-state"><div class="big">🪑</div><div>ماكو طاولات مضافة</div></div>
+    </div>
+  </div>
 </div>
 
 <!-- Multi-select sub-options picker (مقبلات -> باذنجانية/رمانية/...) -- same
@@ -371,6 +399,10 @@
   <button type="button" data-tab="order">
     <span class="tab-icon">➕</span>
     <span>طلب مباشر</span>
+  </button>
+  <button type="button" data-tab="tables">
+    <span class="tab-icon">🪑</span>
+    <span>الطاولات</span>
   </button>
 </div>
 
