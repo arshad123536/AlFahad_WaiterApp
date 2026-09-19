@@ -71,7 +71,10 @@ async function boot() {
     Preferences.get({ key: AUTH_KEY }),
     Preferences.get({ key: USERNAME_KEY }),
   ]);
-  state.restaurant = restaurant || null;
+  // This build is Fly Kentucky's: no restaurant picker. A fresh install goes straight
+  // to login; an install that already saved another restaurant keeps it.
+  state.restaurant = restaurant || 'superkentucky';
+  if (!restaurant) Preferences.set({ key: RESTAURANT_KEY, value: state.restaurant }).catch(() => {});
   state.authToken = authToken || null;
   state.username = username || null;
 
