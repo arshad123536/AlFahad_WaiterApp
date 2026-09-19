@@ -7,7 +7,7 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater';
 // with whichever base URL that resolved to.
 const RESTAURANTS = {
   tabarak: { label: 'مطعم ومشاوي تبارك', base: 'https://tabarak.al-fahad.co' },
-  superkentucky: { label: 'سوبر كنتاكي', base: 'https://super-kentucky.al-fahad.co' },
+  superkentucky: { label: 'فلاي كنتاكي', base: 'https://fly-kentucky.al-fahad.co' },
 };
 
 const RESTAURANT_KEY = 'waiterapp.restaurant';

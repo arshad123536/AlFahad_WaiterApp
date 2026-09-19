@@ -1,7 +1,7 @@
 {
   "name": "waiter-app",
   "version": "1.0.0",
-  "description": "Al-Fahad waiter app -- table calls, dine-in orders, direct ordering, for Tabarak and Super Kentucky",
+  "description": "Al-Fahad waiter app -- table calls, dine-in orders, direct ordering, for Tabarak and Fly Kentucky (formerly Super Kentucky)",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
